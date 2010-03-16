@@ -2,146 +2,114 @@
 
 require_once("ClientSniffer.php");
 
-/* OS */
+ClientSniffer::systems(array(
+	"Windows"			=> array("Windows NT", "Windows"),
+	"Mac OS"			=> array("Mac OS X", "Mac", "Macintosh", "PowerPC", "PPC"),
+	"Linux"				=> array("Linux", "FreeBSD", "OpenBSD", "SunOS")
+));
 
-ClientSniffer::teach(
-	"os_name", "Windows", NULL, array("Windows NT", '/(?:NT )?((?:[0-9]+[\.]?)*)/i', true)
-);
+ClientSniffer::browsers(array(
+	"Links"				=> NULL,
+	"Midori"			=> NULL,
 
-ClientSniffer::teach(
-	"os_name", "Linux", array("FreeBSD", "SunOS"), NULL
-);
+	"Opera" => array(
+		NULL,
+		array("Version", "Opera")
+	),
 
-ClientSniffer::teach(
-	"os_name", "Mac OS", array("Mac", "Macintosh", "PowerPC", "PPC"), array(NULL, '/(?:Platform|X )?((?:[0-9]+[\._]?)*)/i', false)
-);
+	"Camino"			=> NULL,
 
-/* Browser */
+	"Firefox" 			=> array("Firefox", "Iceweasel", "Minefield", "Shiretoko", "Namoroka", "BonEcho", "GranParadiso"),
+	"Internet Explorer"	=> array("MSIE"),
+	"Chrome"			=> array("Chrome", "ChromePlus", "Iron"),
 
-ClientSniffer::teach(
-	"browser_name", "Opera", NULL, array("Version", NULL, true)
-);
+	"Shiira"			=> NULL,
 
-ClientSniffer::teach(
-	"browser_name", "Firefox", array("Iceweasel", "Minefield", "Shiretoko", "Namoroka", "BonEcho", "GranParadiso"), NULL
-);
+	"Safari" => array(
+		NULL,
+		array("Version")
+	),
 
-ClientSniffer::teach(
-	"browser_name", "Internet Explorer", array("MSIE"), NULL
-);
+	"Konqueror"			=> NULL,
+	"iCab"				=> NULL,
 
-ClientSniffer::teach(
-	"browser_name", "Chrome", array("Iron"), NULL
-);
+	"OmniWeb"			=> NULL,
+));
 
-ClientSniffer::teach(
-	"browser_name", "Safari", NULL, array("Version", NULL, false)
-);
+ClientSniffer::engines(array(
+	"WebKit"			=> NULL,
 
-ClientSniffer::teach(
-	"browser_name", "Konqueror", NULL, NULL
-);
+	"Gecko" => array(
+		NULL, 
+		array("rv:")
+	),
 
-ClientSniffer::teach(
-	"browser_name", "iCab", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"browser_name", "OmniWeb", NULL, NULL
-);
-
-/* Engine */
-
-ClientSniffer::teach(
-	"engine_name", "WebKit", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"engine_name", "Gecko", NULL, array("rv:", NULL, false)
-);
-
-ClientSniffer::teach(
-	"engine_name", "Trident", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"engine_name", "Tasman", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"engine_name", "KHTML", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"engine_name", "iCab", NULL, NULL
-);
-
-ClientSniffer::teach(
-	"engine_name", "Presto", NULL, NULL
-);
+	"Trident"			=> NULL,
+	"Tasman"			=> NULL,
+	"KHTML"				=> NULL,
+	"iCab"				=> NULL,
+	"Presto"			=> NULL,
+));
 
 
-/* AfterRules */
-
-
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
 		"browser_name"	=> "Internet Explorer",
-		"os_name"		=> "Mac OS"
+		"system_name"		=> "Mac OS"
 	),
 	array("engine_name"	=> "Tasman")
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
 		"browser_name"	=> "Internet Explorer",
-		"os_name"		=> "Windows",
+		"system_name"		=> "Windows",
 	),
 	array("engine_name"	=> "Trident")
 );
 
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
 		"browser_name"	=> "Safari",
-		"os_name"		=> "Linux"
+		"system_name"		=> "Linux"
 	),
 	array("engine_name"	=> ClientSniffer::UNKNOWN_NAME)
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
-		"os_name"		=> "Windows",
-		"os_ver"		=> array("5", "5.0")
+		"system_name"		=> "Windows",
+		"system_ver"		=> array("5", "5.0")
 	),
-	array("os_ver"		=> "2000")
+	array("system_ver"		=> "2000")
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
-		"os_name"		=> "Windows",
-		"os_ver"		=> array("5.1", "5.2")
+		"system_name"		=> "Windows",
+		"system_ver"		=> array("5.1", "5.2")
 	),
-	array("os_ver"		=> "XP")
+	array("system_ver"		=> "XP")
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
-		"os_name"		=> "Windows",
-		"os_ver"		=> "6.0"
+		"system_name"		=> "Windows",
+		"system_ver"		=> "6.0"
 	),
-	array("os_ver"		=> "Vista")
+	array("system_ver"		=> "Vista")
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
-		"os_name"		=> "Windows",
-		"os_ver"		=> array("6.1", "6.2")
+		"system_name"		=> "Windows",
+		"system_ver"		=> array("6.1", "6.2")
 	),
-	array("os_ver"		=> "7")
+	array("system_ver"		=> "7")
 );
 
-ClientSniffer::guess(
+ClientSniffer::assume(
 	array(
 		"browser_name"		=> "OmniWeb",
 	),

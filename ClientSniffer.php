@@ -4,19 +4,18 @@ class ClientSniffer {
 
 	/* TODO
 	 *
-	 * Better synonyms handling
-	 * `teach` method should accept bulk insertion
+	 * 
 	 *
 	 */
-
-	private /* String */ $user_agent;
-	private /* Array  */ $db;
 
 	const UNKNOWN_NAME = "Unknown";
 	const UNKNOWN_VER = -1;
 
-	private static /* Array */ $priorities = array();
-	private static /* Array */ $rules = array();
+	private /* String */ $user_agent;
+	private /* Array  */ $db;
+
+	private static /* Array */ $queues = array();
+	private static /* Array */ $traces = array();
 	private static /* Array */ $guesses = array();
 
 	/* Extension utilities */
@@ -27,33 +26,50 @@ class ClientSniffer {
 #		if ($index) self::place(self::$known, $index, $name);
 #	}
 
-	public static function /* void */ guess($if, $then) {
+	private static function /* void */ teach($context, $array) {
+		if (!isset(self::$queues[$context[0]])) self::$queues[$context[0]] = array();
+		if (!isset(self::$traces[$context[1]])) self::$traces[$context[1]] = array();
+
+		foreach($array as $item => $values) {
+			$synonyms = $values;
+
+			if (is_array($values)) {
+				if (count($values) >= 2 && is_array($values[1])) {
+					$synonyms = $values[0];
+
+					if (!in_array($item, self::$traces[$context[1]]))
+						self::$traces[$context[1]][$item] = $values[1];
+				}
+			}
+
+			if (!$synonyms) $synonyms = $item;
+
+			if (is_array($synonyms))
+				foreach($synonyms as $synonym)
+					self::$queues[$context[0]][] = $synonym;
+			else
+				self::$queues[$context[0]][] = $synonyms;
+
+			self::assume(array($context[0] => $synonyms), array($context[0] => $item));
+		}
+	}
+
+	public static function /* void */ assume($if, $then) {
 		if (!is_array($if) || !is_array($then) || count($if) == 0 || count($then) == 0) return NULL;
 
 		self::$guesses[] = array($if, $then);
 	}
 
-	public static function /* void */ teach($context, $name, $synonyms = NULL, $rules = NULL) {
-		if (!$context || !$name) return NULL;
+	public static function /* void */ systems($array) {
+		self::teach(array("system_name", "system_ver"), $array);
+	}
 
-		if (!isset(self::$priorities[$context])) self::$priorities[$context] = array();
-		if (!in_array($name, self::$priorities[$context])) self::$priorities[$context][] = $name;
+	public static function /* void */ browsers($array) {
+		self::teach(array("browser_name", "browser_ver"), $array);
+	}
 
-		if ($synonyms && is_array($synonyms) && count($synonyms) > 0) {
-			foreach($synonyms as $synonym)
-				self::$priorities[$context][] = $synonym;
-
-			$if = array($context => $synonyms);
-			$then = array($context => $name);
-
-			self::guess($if, $then);
-		}
-
-		if ($rules && is_array($rules) && count($rules) == 3) {
-			if (!isset(self::$rules[$context])) self::$rules[$context] = array();
-
-			self::$rules[$context][$name] = $rules;
-		}
+	public static function /* void */ engines($array) {
+		self::teach(array("engine_name", "engine_ver"), $array);
 	}
 
 	/* Static utilities */
@@ -99,13 +115,13 @@ class ClientSniffer {
 	/* Istance */
 
 	public function /* Constructor */ __construct($ua_string = NULL) {
-		if ($ua_string && !self::parse($ua_string)) die("La stringa non e' corretta");
+		if ($ua_string && !self::parse($ua_string)) die("Parsing has failed. Please provide a valid User-Agent string.");
 
 		$this->user_agent = (($ua_string) ? $ua_string : $_SERVER['HTTP_USER_AGENT']);
 
 		$this->db = array(
-			"os_name"			=> self::UNKNOWN_NAME,
-			"os_ver"			=> self::UNKNOWN_VER,
+			"system_name"		=> self::UNKNOWN_NAME,
+			"system_ver"		=> self::UNKNOWN_VER,
 
 			"browser_name"		=> self::UNKNOWN_NAME,
 			"browser_ver"		=> self::UNKNOWN_VER,
@@ -114,11 +130,11 @@ class ClientSniffer {
 			"engine_ver"		=> self::UNKNOWN_VER,
 		);
 
-		$this->detect("os_name", "os_ver");
-		$this->detect("browser_name", "browser_ver");
-		$this->detect("engine_name", "engine_ver");
+		$this->detect(array("system_name", "system_ver"));
+		$this->detect(array("browser_name", "browser_ver"));
+		$this->detect(array("engine_name", "engine_ver"));
 
-		$this->parseGuesses();
+		$this->guess();
 	}
 
 	/* Database utilities */
@@ -145,40 +161,30 @@ class ClientSniffer {
 
 	/* Detection utilities */
 
-	private function /* void */ detect($name, $ver = NULL) {
-		for ($i = 0; $i < count(self::$priorities[$name]) && !$this->has($name); ++$i)
-			if ($this->contains(self::$priorities[$name][$i]))
-				$this->set($name, self::$priorities[$name][$i]);
+	private function /* void */ detect($context) {
+		for ($i = 0; $i < count(self::$queues[$context[0]]) && !$this->has($context[0]); ++$i)
+			if ($this->contains(self::$queues[$context[0]][$i]))
+				$this->set($context[0], self::$queues[$context[0]][$i]);
 
-		if ($ver) {
-			if ($this->has($name)) {
-				$match = $this->parseRules($name);
-				if ($match) $this->set($ver, str_replace("_", ".", $match[0]));
-			}
+		if ($this->has($context[0])) {
+			$match = $this->trace($context);
+			if ($match) $this->set($context[1], str_replace("_", ".", $match[0]));
 		}
 	}
 
-	private function /* Array */ parseRules($context) {
-		$rules = self::$rules[$context];
+	private function /* Array */ trace($context) {
+		$traces = self::$traces[$context[1]];
 
-		if (!$rules) return NULL;
-
-		$search = $this->get($context);
-		$regexp = '/\/?([0-9\.]*)/i';
-		$iterative = false;
-
-		foreach($rules as $name => $values) {
-			if ($this->get($context) == $name) {
-				if ($values[0]) $search = $values[0];
-				if ($values[1]) $regexp = $values[1];
-				if ($values[2]) $iterative = $values[2];
-			}
-		}
-
+		$search = $this->get($context[0]);
 		$index = $this->search($search);
+		$regexp = '/\/?([0-9\._]*)/i';
 
-		if ($index == -1 && $search != $this->get($context) && $iterative)
-			$index = $this->search($this->get($context));
+		if (isset($traces[$search])) {
+			$index = -1;
+
+			for($i = 0; $index == -1 && $i < count($traces[$search]); $i++)
+				$index = $this->search($traces[$search][$i]);
+		}
 
 		if ($index == -1) return NULL;
 
@@ -188,25 +194,25 @@ class ClientSniffer {
 		return $match;
 	}
 
-	private function /* void */ parseGuesses() {
-		foreach(self::$guesses as $rule) {
-			if (is_array($rule) && count($rule) == 2) {
+	private function /* void */ guess() {
+		foreach(self::$guesses as $assumption) {
+			if (is_array($assumption) && count($assumption) == 2) {
 				$test = true;
 
-				foreach($rule[0] as $name => $values) {
+				foreach($assumption[0] as $item => $values) {
 					$accum = false;
 
 					if (is_array($values))
-						foreach($values as $v) $accum = $accum || ($this->get($name) == $v);
+						foreach($values as $value) $accum = $accum || ($this->get($item) == $value);
 					else
-						$accum = ($this->get($name) == $values);
+						$accum = ($this->get($item) == $values);
 
 					$test = $test && $accum;
 				}
 
 				if ($test)
-					foreach($rule[1] as $name => $value)
-						$this->set($name, $value);
+					foreach($assumption[1] as $item => $value)
+						$this->set($item, $value);
 			}
 		}
 	}
@@ -214,7 +220,7 @@ class ClientSniffer {
 	public function /* String */ sniff() {
 		$output = "<p><code>".$this->getUserAgent()."</code></p>\n";
 		$output .= "<dl>\n";
-		$output .= "<dt>OS</dt><dd>".$this->get("os_name") ." ". $this->get("os_ver")."</dd>\n";
+		$output .= "<dt>OS</dt><dd>".$this->get("system_name") ." ". $this->get("system_ver")."</dd>\n";
 		$output .= "<dt>Browser</dt><dd>".$this->get("browser_name") ." ". $this->get("browser_ver")."</dd>\n";
 		$output .= "<dt>Engine</dt><dd>".$this->get("engine_name") ." ". $this->get("engine_ver")."</dd>\n";
 		$output .= "</dl>\n";

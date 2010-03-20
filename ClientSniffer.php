@@ -8,9 +8,6 @@ class ClientSniffer {
 	 *
 	 */
 
-	const UNKNOWN_NAME = "Unknown";
-	const UNKNOWN_VER = -1;
-
 	private /* String */ $user_agent;
 	private /* Array  */ $db;
 
@@ -19,12 +16,6 @@ class ClientSniffer {
 	private static /* Array */ $guesses = array();
 
 	/* Extension utilities */
-
-#	private static function /* void */ priority($context, $name, $lighter) {
-#		$index = array_search(self::$known, $lighter);
-
-#		if ($index) self::place(self::$known, $index, $name);
-#	}
 
 	private static function /* void */ teach($context, $array) {
 		if (!isset(self::$queues[$context[0]])) self::$queues[$context[0]] = array();
@@ -92,10 +83,6 @@ class ClientSniffer {
 		return NULL;
 	}
 
-#	private static function /* Array */ place($array, $index, $value) {
-#		return array_splice($array, $index, count($array), array_merge(array($value), array_slice($array, $index))); 
-#	}
-
 	/* String utilities */
 
 	private function /* int */ search($word, $string = NULL) {
@@ -120,14 +107,14 @@ class ClientSniffer {
 		$this->user_agent = (($ua_string) ? $ua_string : $_SERVER['HTTP_USER_AGENT']);
 
 		$this->db = array(
-			"system_name"		=> self::UNKNOWN_NAME,
-			"system_ver"		=> self::UNKNOWN_VER,
+			"system_name"		=> NULL,
+			"system_ver"		=> NULL,
 
-			"browser_name"		=> self::UNKNOWN_NAME,
-			"browser_ver"		=> self::UNKNOWN_VER,
+			"browser_name"		=> NULL,
+			"browser_ver"		=> NULL,
 
-			"engine_name"		=> self::UNKNOWN_NAME,
-			"engine_ver"		=> self::UNKNOWN_VER,
+			"engine_name"		=> NULL,
+			"engine_ver"		=> NULL,
 		);
 
 		$this->detect(array("system_name", "system_ver"));
@@ -151,8 +138,7 @@ class ClientSniffer {
 	}
 
 	public function /* boolean */ has($name) {
-		return ($this->get($name) != NULL && 
-			!($this->get($name) == self::UNKNOWN_NAME) || ($this->get($name) == self::UNKNOWN_VER));
+		return ($this->get($name) != NULL);
 	}
 
 	public function /* String */ getUserAgent() {
@@ -168,7 +154,7 @@ class ClientSniffer {
 
 		if ($this->has($context[0])) {
 			$match = $this->trace($context);
-			if ($match) $this->set($context[1], str_replace("_", ".", $match[0]));
+			if ($match) $this->set($context[1], trim(str_replace("_", ".", $match[0]), "."));
 		}
 	}
 
@@ -177,7 +163,7 @@ class ClientSniffer {
 
 		$search = $this->get($context[0]);
 		$index = $this->search($search);
-		$regexp = '/\/?([0-9\._]*)/i';
+		$regexp = '/([0-9\._]*)/i';
 
 		if (isset($traces[$search])) {
 			$index = -1;
@@ -188,7 +174,7 @@ class ClientSniffer {
 
 		if ($index == -1) return NULL;
 
-		$string = trim($this->cut($index));
+		$string = trim($this->cut($index), " /");
 		$match = self::regexp($regexp, $string);
 
 		return $match;
